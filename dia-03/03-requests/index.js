@@ -1,36 +1,47 @@
+// console.log(process.env.NODE_ENV)
 const fetch = require('node-fetch')
 
+const exceptionKeys = ['url'];
 
-
-function getPerson(id){
+const getPerson = (id) => {
     fetch(`https://swapi.dev/api/people/${id}`)
-        .then(response => response.json())
-        .then(async (person) => {
+    .then(response => response.json())
+    .then(async person => {
 
-            const { homeworld, films, vehicles, starships} = person
+        for(key of Object.keys(person)) {
 
-            const promiseHomeWorld =  await fetch(homeworld).then(response => response.json())
-            person.homeworld = promiseHomeWorld.name
+            if (typeof person[key] !== 'string') {
+                const myStrings = [];
 
-            const promiseFilms = films.map(url => fetch(url).then((response) => response.json()))
-            const promiseVehicles = vehicles.map(url => fetch(url).then(response => response.json()))
-            const promisesStartships = starships.map(url => fetch(url).then(response => response.json()))
+                for(url of person[key]) {
+                    // const auxPerson = await getData(url);
+                    // myStrings.push(auxPerson.title || auxPerson.name);
+                    myStrings.push(await findName(url));
+                }
+                person[key] = myStrings;
+            } else {
+                if(person[key].includes('http') && !exceptionKeys.includes(key)) {
+                    // const auxPerson = await getData(person[key]);
+                    // person[key] = auxPerson.title || auxPerson.name;
+                    person[key] = await findName(person[key]);
+                }
+            }
+        }
 
-            const startTime = Date.now()
-            Promise.all([promiseFilms, promiseVehicles, promisesStartships])
-                .then(async (results) => {
-                    await Promise.all(results[0]).then(films => films.forEach((film, index) => person.films[index] = film.title))
-                    await Promise.all(results[1]).then(vehicles => vehicles.forEach((vehicle, index) => person.vehicles[index] = vehicle.name))
-                    await Promise.all(results[2]).then(starships => starships.forEach((starship, index) => person.starships[index] = starship.name))
-                })
-                .finally(() => {
-                    console.log(person)
-                    console.info(`Finished in ${(Date.now() - startTime) / 1000} seconds`)
-                })
-        
-            
-        })
-              
-
+        console.log(person);
+    })
+    .catch(err => console.error(err))
 }
-getPerson(1)
+
+getPerson(3)
+
+async function getData(url) {
+    let response = await fetch(url)
+    return response.json()
+    
+}
+
+async function findName(url) {
+    const response = await getData(url);
+    return response.title || response.name
+}
